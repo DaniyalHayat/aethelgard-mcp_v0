@@ -1,6 +1,7 @@
 """Read-only issuer and market-data retrieval with explicit vintage and feed metadata."""
 
 import asyncio
+import math
 import os
 import re
 from datetime import datetime, timedelta, timezone
@@ -83,6 +84,77 @@ class PublicData:
             "filings": rows,
             "coverage": "Current recent-submissions block only; older supplemental files and filing bodies are not fetched. Metadata does not verify financial claims.",
             "older_files": data.get("filings", {}).get("files", []),
+        }
+
+    async def latest_quotes(self, tickers: list[str], feed="iex") -> dict[str, Any]:
+        request = ResearchRequest(tickers=tickers)
+        if not request.tickers:
+            raise ValueError("Provide at least one ticker")
+        if feed not in ("iex", "sip", "delayed_sip"):
+            raise ValueError("Feed must be iex, sip or delayed_sip")
+        key, secret = os.getenv("ALPACA_API_KEY", ""), os.getenv("ALPACA_SECRET_KEY", "")
+        if not key or not secret:
+            raise ValueError("Set ALPACA_API_KEY and ALPACA_SECRET_KEY for optional market-data tools")
+        url = "https://data.alpaca.markets/v2/stocks/quotes/latest"
+        data = await self._get(
+            url, {"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret},
+            {"symbols": ",".join(request.tickers), "feed": feed, "currency": "USD"},
+        )
+        retrieved = datetime.now(timezone.utc)
+        quotes = data.get("quotes")
+        if not isinstance(quotes, dict):
+            raise DataSourceError("Market-data response is missing quotes")
+        if set(quotes) - set(request.tickers):
+            raise DataSourceError("Market-data response contains an unexpected symbol")
+        symbols, errors = {}, {}
+        for ticker in request.tickers:
+            quote = quotes.get(ticker)
+            if quote is None:
+                errors[ticker] = "Quote unavailable for requested symbol"
+                continue
+            try:
+                if not isinstance(quote, dict):
+                    raise ValueError("Malformed quote")
+                numbers = [quote[field] for field in ("bp", "ap", "bs", "as")]
+                if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) for value in numbers):
+                    raise ValueError("Quote prices and sizes must be finite numbers")
+                bid, ask, bid_size, ask_size = numbers
+                if bid <= 0 or ask <= 0 or bid_size < 0 or ask_size < 0:
+                    raise ValueError("Quote has no active price or invalid size")
+                if bid > ask:
+                    raise ValueError("Crossed bid and ask")
+                stamp = datetime.fromisoformat(quote["t"].replace("Z", "+00:00"))
+                if stamp.tzinfo is None:
+                    raise ValueError("Quote timestamp requires a timezone")
+                age = (retrieved - stamp).total_seconds()
+                if age < -30:
+                    raise ValueError("Quote timestamp is in the future beyond clock tolerance")
+                if any(not isinstance(quote[field], str) or not re.fullmatch(r"[A-Za-z0-9]{1,8}", quote[field]) for field in ("bx", "ax")):
+                    raise ValueError("Invalid quote exchange code")
+                midpoint = bid + (ask - bid) / 2
+                symbols[ticker] = {
+                    "bid_price": bid, "ask_price": ask, "bid_size": bid_size, "ask_size": ask_size,
+                    "bid_exchange": quote["bx"], "ask_exchange": quote["ax"],
+                    "quoted_at": stamp.astimezone(timezone.utc).isoformat(),
+                    "age_seconds": age, "older_than_60_seconds": age > 60,
+                    "within_clock_skew_tolerance": age < 0,
+                    "spread": ask - bid, "midpoint": midpoint, "spread_fraction": (ask - bid) / midpoint,
+                }
+            except (KeyError, TypeError, AttributeError, OverflowError):
+                errors[ticker] = "Malformed quote fields"
+            except ValueError as exc:
+                errors[ticker] = str(exc) if str(exc) in {
+                    "Malformed quote", "Quote prices and sizes must be finite numbers",
+                    "Quote has no active price or invalid size", "Crossed bid and ask",
+                    "Quote timestamp requires a timezone", "Quote timestamp is in the future beyond clock tolerance",
+                    "Invalid quote exchange code",
+                } else "Malformed quote timestamp"
+        return {
+            "source": url, "feed": feed, "currency": "USD", "retrieved_at": retrieved.isoformat(),
+            "requested_symbols": request.tickers, "symbols": symbols, "errors": errors,
+            "status": "complete" if not errors else "partial" if symbols else "unavailable",
+            "future_clock_tolerance_seconds": 30,
+            "limitations": "Latest available quotes, not historical cutoff data or guaranteed fills. IEX is one venue, not consolidated NBBO; SIP requires entitlement and delayed_sip is delayed by 15 minutes. Age is measured from source time, without assuming the market is open. Sizes are preserved in provider units; no share-unit conversion is assumed. Midpoints are valuation references, not executable prices.",
         }
 
     async def stock_history(

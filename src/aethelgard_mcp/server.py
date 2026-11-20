@@ -43,6 +43,11 @@ def create_server(settings: Settings, orchestrator=None):
         return await PublicData().sec_filings(cik, datetime.fromisoformat(as_of))
 
     @server.tool(structured_output=True)
+    async def latest_stock_quotes(tickers: list[str], feed: str = "iex") -> dict[str, Any]:
+        """Read dated bid/ask pairs and quote age; latest data must not enter an earlier research cutoff."""
+        return await PublicData().latest_quotes(tickers, feed)
+
+    @server.tool(structured_output=True)
     async def adjusted_price_history(tickers: list[str], as_of: str, feed: str = "iex") -> dict[str, Any]:
         """Fetch optional Alpaca history and compute technicals; requires your market-data keys."""
         return await PublicData().stock_history(tickers, datetime.fromisoformat(as_of), feed)

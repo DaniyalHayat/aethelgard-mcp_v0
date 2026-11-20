@@ -97,6 +97,7 @@ Missing/stale/post-cutoff prices, unread primary financial evidence, incomplete 
 Optional host tools:
 
 - `issuer_filings`: SEC recent-submission metadata by CIK and acceptance timestamp. Set `SEC_USER_AGENT` to your application name and contact email. No SEC key is required. This returns filing links, not automatic audited statement extraction.
+- `latest_stock_quotes`: timestamped Alpaca bid/ask pairs, provider sizes, exchange codes, spread, midpoint and quote age using your market-data keys. IEX is one venue, SIP requires entitlement, and `delayed_sip` has a 15-minute delay. Missing, crossed, zero-price, nonfinite or materially future-dated quotes are explicitly withheld per symbol. This is latest-available data, not a historical-cutoff lookup or a guaranteed broker fill. [Endpoint contract](https://docs.alpaca.markets/us/reference/stocklatestquotes-1).
 - `adjusted_price_history`: Alpaca history and technicals using your `ALPACA_API_KEY` and `ALPACA_SECRET_KEY`. IEX is one venue; SIP requires entitlement. Pagination is checked. Adjusted history is not an executable quote or guaranteed point-in-time backtest data.
 
 These optional tools are separate from the autonomous research stages, which use hosted web search. Their output is not automatically injected into research calls.
