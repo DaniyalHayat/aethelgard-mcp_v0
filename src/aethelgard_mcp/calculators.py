@@ -1,6 +1,9 @@
 """Deterministic scenarios; none of these functions predicts an outcome."""
 
 import math
+from datetime import date
+from statistics import stdev
+from typing import Any
 
 
 def finite(**values):
@@ -14,8 +17,13 @@ def positive(**values):
         raise ValueError("These inputs must be positive: " + ", ".join(values))
 
 
-def return_attribution(price: float, starting_eps: float, terminal_eps: float, exit_pe: float) -> dict:
-    positive(price=price, starting_eps=starting_eps, terminal_eps=terminal_eps, exit_pe=exit_pe)
+def return_attribution(
+    price: float, starting_eps: float, terminal_eps: float, exit_pe: float
+) -> dict[str, Any]:
+    positive(price=price, starting_eps=starting_eps, exit_pe=exit_pe)
+    finite(terminal_eps=terminal_eps)
+    if terminal_eps < 0:
+        raise ValueError("P/E attribution requires nonnegative terminal EPS")
     earnings = terminal_eps / starting_eps - 1
     rerating = exit_pe / (price / starting_eps) - 1
     interaction = earnings * rerating
@@ -30,7 +38,7 @@ def return_attribution(price: float, starting_eps: float, terminal_eps: float, e
     }
 
 
-def owner_cash_dcf(cashflows: list[float], discount_rate: float, terminal_growth: float) -> dict:
+def owner_cash_dcf(cashflows: list[float], discount_rate: float, terminal_growth: float) -> dict[str, Any]:
     if not cashflows:
         raise ValueError("At least one cash flow is required")
     finite(
@@ -56,7 +64,7 @@ def owner_cash_dcf(cashflows: list[float], discount_rate: float, terminal_growth
 
 def enterprise_dcf(
     fcffs: list[float], wacc: float, terminal_growth: float, net_debt: float, diluted_shares: float
-) -> dict:
+) -> dict[str, Any]:
     positive(diluted_shares=diluted_shares)
     finite(net_debt=net_debt)
     result = owner_cash_dcf(fcffs, wacc, terminal_growth)
@@ -73,7 +81,7 @@ def enterprise_dcf(
 
 def reverse_growth(
     target_value: float, starting_cash: float, years: int, discount_rate: float, terminal_growth: float
-) -> dict:
+) -> dict[str, Any]:
     positive(target_value=target_value, starting_cash=starting_cash)
     if isinstance(years, bool) or not isinstance(years, int) or not 1 <= years <= 50:
         raise ValueError("years must be an integer from 1 to 50")
@@ -101,7 +109,7 @@ def reverse_growth(
 
 def incremental_roic(
     nopat_before: float, nopat_after: float, capital_before: float, capital_after: float
-) -> dict:
+) -> dict[str, Any]:
     finite(
         nopat_before=nopat_before,
         nopat_after=nopat_after,
@@ -125,7 +133,7 @@ def treasury_return(
     yield_change: float = 0,
     roundtrip_spread: float = 0.0001,
     ordinary_tax_rate: float = 0.24,
-) -> dict:
+) -> dict[str, Any]:
     positive(capital=capital)
     finite(
         net_sec_yield=net_sec_yield,
@@ -160,7 +168,7 @@ def portfolio_return(
     capital_tax_rate: float = 0.15,
     dividend_tax_rate: float = 0.15,
     roundtrip_cost: float = 0.001,
-) -> dict:
+) -> dict[str, Any]:
     positive(years=years)
     finite(
         capital_tax_rate=capital_tax_rate, dividend_tax_rate=dividend_tax_rate, roundtrip_cost=roundtrip_cost
@@ -193,4 +201,86 @@ def portfolio_return(
         "holding_period_return": profit / principal,
         "annualized_terminal_wealth_return": (ending / principal) ** (1 / years) - 1 if ending >= 0 else None,
         "convention": "Dividends retained as cash; terminal-wealth CAGR is not a dated shareholder IRR. Gains netted across positions; no immediate net-loss tax credit.",
+    }
+
+
+def shareholder_irr(dates: list[str], cashflows: list[float]) -> dict[str, Any]:
+    """Dated annual IRR for one investment followed only by nonnegative receipts."""
+    if len(dates) != len(cashflows) or len(dates) < 2:
+        raise ValueError("Provide matching dates and cash flows, including purchase and exit")
+    parsed = [date.fromisoformat(value) for value in dates]
+    finite(**{str(i): cash for i, cash in enumerate(cashflows)})
+    if any(a >= b for a, b in zip(parsed, parsed[1:])):
+        raise ValueError("Dates must be strictly increasing; combine same-day cash flows")
+    if cashflows[0] >= 0 or any(cash < 0 for cash in cashflows[1:]) or not any(cashflows[1:]):
+        raise ValueError("Require one initial negative investment followed by nonnegative receipts")
+    years = [(day - parsed[0]).days / 365 for day in parsed]
+
+    def npv(rate):
+        terms = [cashflows[0]]
+        for cash, year in zip(cashflows[1:], years[1:]):
+            exponent = -year * math.log1p(rate)
+            terms.append(cash * math.exp(exponent) if exponent < 700 else float("inf"))
+        return sum(terms)
+
+    low, high = -0.999999, 1e6
+    if npv(low) < 0 or npv(high) > 0:
+        raise ValueError("IRR is outside the supported numerical bracket")
+    for _ in range(200):
+        midpoint = (low + high) / 2
+        if npv(midpoint) > 0:
+            low = midpoint
+        else:
+            high = midpoint
+    result = (low + high) / 2
+    return {
+        "annual_irr": result,
+        "npv_residual": npv(result),
+        "day_count": "ACT/365",
+        "convention": "Receipts must include dividends and terminal sale proceeds after the chosen costs/taxes.",
+    }
+
+
+def technical_context(adjusted_closes: list[float], volatility_days: int = 63) -> dict[str, Any]:
+    """Indicators from ordered, consistently adjusted daily observations."""
+    if len(adjusted_closes) < 2:
+        raise ValueError("At least two observations are required")
+    positive(**{str(i): price for i, price in enumerate(adjusted_closes)})
+    if isinstance(volatility_days, bool) or not isinstance(volatility_days, int) or volatility_days < 2:
+        raise ValueError("Volatility window must be an integer of at least two daily returns")
+    returns = [math.log(b / a) for a, b in zip(adjusted_closes, adjusted_closes[1:])]
+    rsi = None
+    if len(adjusted_closes) >= 15:
+        changes = [b - a for a, b in zip(adjusted_closes, adjusted_closes[1:])]
+        gain = sum(max(value, 0) for value in changes[:14]) / 14
+        loss = sum(max(-value, 0) for value in changes[:14]) / 14
+        for change in changes[14:]:
+            gain = (gain * 13 + max(change, 0)) / 14
+            loss = (loss * 13 + max(-change, 0)) / 14
+        rsi = 50.0 if gain == loss == 0 else 100.0 if loss == 0 else 100 - 100 / (1 + gain / loss)
+    peak = adjusted_closes[0]
+    drawdown = 0.0
+    for price in adjusted_closes:
+        peak = max(peak, price)
+        drawdown = min(drawdown, price / peak - 1)
+    return {
+        "observations": len(adjusted_closes),
+        "last_adjusted_close": adjusted_closes[-1],
+        "sma": {
+            str(window): sum(adjusted_closes[-window:]) / window if len(adjusted_closes) >= window else None
+            for window in (20, 50, 200)
+        },
+        "rsi14_wilder": rsi,
+        "annualized_log_volatility": stdev(returns[-volatility_days:]) * math.sqrt(252)
+        if len(returns) >= volatility_days
+        else None,
+        "volatility_days": volatility_days,
+        "max_drawdown_full_input": drawdown,
+        "return_252_days": adjusted_closes[-1] / adjusted_closes[-253] - 1
+        if len(adjusted_closes) >= 253
+        else None,
+        "momentum_12_minus_1": adjusted_closes[-22] / adjusted_closes[-253] - 1
+        if len(adjusted_closes) >= 253
+        else None,
+        "convention": "252 trading days/year; sample standard deviation of log returns; 12-minus-1 skips 21 sessions. Supply ordered daily prices with one consistent adjustment convention. These indicators do not predict returns.",
     }

@@ -80,6 +80,8 @@ class Evidence(StrictModel):
             return "publication_time_unverified"
         if self.published_at > cutoff:
             return "after_cutoff"
+        if self.kind == "observed" and self.event_at is not None and self.event_at > cutoff:
+            return "future_observation"
         if self.access == "unavailable":
             return "not_read"
         return "eligible"

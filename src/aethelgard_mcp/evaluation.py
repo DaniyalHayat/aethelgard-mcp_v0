@@ -3,12 +3,16 @@
 from datetime import timedelta
 
 from .calculators import enterprise_dcf, owner_cash_dcf, portfolio_return, return_attribution
-from .contracts import ResearchArtifact
+from .contracts import Finding, ResearchArtifact
 from .models import ResearchRequest
 
 
-def evaluate(artifact: ResearchArtifact, request: ResearchRequest) -> dict:
+def evaluate(
+    artifact: ResearchArtifact, request: ResearchRequest, carried_findings: list[Finding] | None = None
+) -> dict:
     ledger = {row.source_id: row for row in artifact.evidence}
+    subjects = {row.ticker for row in artifact.candidates}
+    findings = [*artifact.findings, *(carried_findings or [])]
     rows = []
     for candidate in artifact.candidates:
         failures = list(candidate.gaps)
@@ -26,13 +30,15 @@ def evaluate(artifact: ResearchArtifact, request: ResearchRequest) -> dict:
             row is None
             or row.authority != "primary"
             or row.access != "full_text"
+            or row.kind != "observed"
             or row.cutoff_status(request.as_of) != "eligible"
             for row in financial_sources
         ):
             failures.append("Financial inputs lack eligible fully read primary sources")
         if any(
-            f.severity == "blocking" and f.subject in (candidate.ticker, "all", "portfolio")
-            for f in artifact.findings
+            f.severity == "blocking"
+            and (f.subject.strip().upper() == candidate.ticker or f.subject.strip().upper() not in subjects)
+            for f in findings
         ):
             failures.append("Unresolved blocking research finding")
         seen = set()
@@ -58,7 +64,10 @@ def evaluate(artifact: ResearchArtifact, request: ResearchRequest) -> dict:
                 capital_tax_rate=0.24 if scenario.years <= 1 else 0.15,
             )
             attribution = None
-            if scenario.starting_eps and scenario.terminal_eps and scenario.exit_pe:
+            if all(
+                value is not None
+                for value in (scenario.starting_eps, scenario.terminal_eps, scenario.exit_pe)
+            ):
                 attribution = return_attribution(
                     candidate.price, scenario.starting_eps, scenario.terminal_eps, scenario.exit_pe
                 )

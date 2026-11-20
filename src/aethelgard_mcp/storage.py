@@ -24,9 +24,10 @@ class RunStore:
         target = self.directory(run_id) / name
         raw = json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False)
         temporary = target.with_suffix(".tmp")
-        temporary.write_text(raw, encoding="utf-8")
+        payload = raw.encode("utf-8")
+        temporary.write_bytes(payload)
         temporary.replace(target)
-        return hashlib.sha256(raw.encode()).hexdigest()
+        return hashlib.sha256(payload).hexdigest()
 
     def read(self, run_id, name):
         if not re.fullmatch(r"[a-z0-9_\-]+\.json", name):

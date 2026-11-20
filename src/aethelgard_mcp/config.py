@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 @dataclass(frozen=True)
 class Settings:
     api_key: str = field(default="", repr=False)
-    model: str = "gpt-6.2-astra"
+    model: str = field(default="gpt-6.2-astra", repr=False)
     run_dir: Path = Path("runs")
     max_api_calls: int = 32
     max_output_tokens: int = 6000
@@ -39,8 +39,11 @@ class Settings:
         )
 
     def public(self):
+        model = self.model
+        if self.api_key.strip():
+            model = model.replace(self.api_key.strip(), "[REDACTED]")
         return {
-            "model": self.model,
+            "model": model,
             "max_api_calls": self.max_api_calls,
             "max_output_tokens": self.max_output_tokens,
             "max_parallel": self.max_parallel,

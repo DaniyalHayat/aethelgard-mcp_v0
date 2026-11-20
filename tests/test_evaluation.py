@@ -1,8 +1,9 @@
+import hashlib
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from aethelgard_mcp.contracts import Candidate, ResearchArtifact, Scenario, Valuation
+from aethelgard_mcp.contracts import Candidate, Finding, ResearchArtifact, Scenario, Valuation
 from aethelgard_mcp.evaluation import evaluate
 from aethelgard_mcp.models import Evidence, ResearchRequest
 from aethelgard_mcp.storage import RunStore
@@ -103,9 +104,36 @@ def test_storage_confinement_and_recovery(tmp_path):
     run_id = "a" * 32
     digest = store.write(run_id, "status.json", {"status": "running"})
     assert len(digest) == 64
+    assert digest == hashlib.sha256((tmp_path / run_id / "status.json").read_bytes()).hexdigest()
     store.recover()
     assert store.read(run_id, "status.json")["status"] == "interrupted"
     with pytest.raises(ValueError):
         store.read("../outside", "status.json")
     with pytest.raises(ValueError):
         store.write(run_id, "../secret.json", {})
+
+
+@pytest.mark.parametrize("kind", ["assumption", "opinion", "dated_forecast"])
+def test_financial_evidence_requires_observed_primary_fact(research, kind):
+    request, artifact = research
+    source = artifact.evidence[0].model_copy(update={"source_id": "financial", "kind": kind})
+    artifact.evidence.append(source)
+    artifact.candidates[0].financial_source_ids = ["financial"]
+    assert not evaluate(artifact, request)["candidates"][0]["eligible"]
+
+
+def test_future_observation_and_zero_eps_reconciliation(research):
+    request, artifact = research
+    artifact.evidence[0].event_at = request.as_of + timedelta(days=100)
+    assert artifact.evidence[0].cutoff_status(request.as_of) == "future_observation"
+    artifact.evidence[0].event_at = None
+    scenario = artifact.candidates[0].scenarios[0]
+    scenario.starting_eps, scenario.terminal_eps, scenario.exit_pe = 5, 0, 20
+    assert not evaluate(artifact, request)["candidates"][0]["eligible"]
+
+
+@pytest.mark.parametrize("subject", ["AAA", "aaa", "portfolio", "Unclear provenance problem"])
+def test_carried_blocking_findings_cannot_be_dropped(research, subject):
+    request, artifact = research
+    finding = Finding(subject=subject, severity="blocking", explanation="Unverified", correction="Resolve")
+    assert not evaluate(artifact, request, [finding])["candidates"][0]["eligible"]
