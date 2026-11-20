@@ -12,7 +12,8 @@ This repository is being built in focused, tested increments. Until the implemen
 
 - Configurable ticker count, dollar budget, horizons and decision cutoff.
 - Current news follow-through: search, read the article, follow named sources, distinguish publication dates from event and trade dates.
-- Six separate research perspectives, followed by all-report comparisons and independent checks. These are workflow roles, not six proprietary prediction engines.
+- Three separate research MCP services, each performing independent research, self-validation and peer review, with one orchestrator enforcing the sequence and consolidating findings. These are research roles, not independently proven prediction engines.
+- Default market discovery selects a researched candidate universe and aims to recommend 3–5 eligible stocks, without a hardcoded ticker watchlist. Evidence gaps can produce fewer recommendations.
 - Side-by-side company economics, earnings definitions, cash generation, capital allocation, dilution, funding obligations, valuation and technical context.
 - Deterministic return attribution, DCF, reverse valuation, portfolio scenarios and Treasury carry/duration calculations.
 - Structured source ledgers, saved stage artifacts, a reproducible offline example and honest missing-data gates.
@@ -25,7 +26,7 @@ The server uses the official MCP Python SDK. Network providers, research orchest
 ```mermaid
 flowchart LR
     A[Ticker list or market request] --> B[Validate request and freeze cutoff]
-    B --> C[Independent research perspectives]
+    B --> C[Three independent research MCP services]
     C --> D[Cross-review every report]
     D --> E[Fresh source and calculation audits]
     E --> F[Academic challenge and controlled revisions]
@@ -37,4 +38,3 @@ flowchart LR
 Offline fixtures and mocked provider tests establish behavior, arithmetic and protocol compatibility. They do not establish investment performance. Live integrations are reported separately, with their actual verification status. No API key is required for the offline examples or tests.
 
 Development is AI-assisted. Commit messages and the verification log describe the work actually performed; this project does not claim a live trading track record.
-
