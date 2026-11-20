@@ -3,6 +3,7 @@
 import argparse
 from contextlib import asynccontextmanager
 from datetime import datetime
+from importlib.resources import files
 from typing import Any
 
 from mcp.server import MCPServer
@@ -30,6 +31,11 @@ def create_server(settings: Settings, orchestrator=None):
         lifespan=lifespan,
         instructions="Start research, poll status, then read the report. Live runs can incur API charges. Three separate research services are coordinated internally.",
     )
+
+    @server.resource("aethelgard://research-controls", mime_type="text/markdown")
+    def research_controls() -> str:
+        """Read the versioned evidence, valuation and review rules used by every research role."""
+        return files("aethelgard_mcp").joinpath("resources/research-controls.md").read_text(encoding="utf-8")
 
     @server.tool(structured_output=True)
     async def issuer_filings(cik: str, as_of: str) -> dict[str, Any]:

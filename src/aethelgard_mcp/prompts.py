@@ -1,10 +1,11 @@
 """Versioned public instructions, not hidden reasoning or model-weight updates."""
 
 import json
+from importlib.resources import files
 
 from .query_planning import plan_queries
 
-PROMPT_VERSION = "1.0.0"
+PROMPT_VERSION = "1.1.0"
 ROLES = ("fundamental", "valuation", "challenge")
 ROLE_FOCUS = {
     "fundamental": "Business quality, industry structure, management, customer concentration, contracts, supply chain, capital allocation, credit and survivability. Apply Buffett, Munger, Fisher and Lynch critically.",
@@ -70,8 +71,11 @@ STAGES = {
 
 
 def build_prompt(role, stage, request, context):
+    controls = files("aethelgard_mcp").joinpath("resources/research-controls.md").read_text(encoding="utf-8")
     return (
         COMMON
+        + "\nRESEARCH CONTROLS:\n"
+        + controls
         + "\nROLE: "
         + ROLE_FOCUS[role]
         + "\nSTAGE: "

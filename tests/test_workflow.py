@@ -95,6 +95,14 @@ async def test_orchestrator_mcp_tools_and_background_lifecycle(tmp_path):
         assert math_result.structured_content["terminal_price"] == 120
 
 
+async def test_packaged_research_controls_are_available_over_mcp(tmp_path):
+    coordinator, _ = setup_inprocess(tmp_path)
+    async with Client(create_server(coordinator.settings, coordinator)) as client:
+        result = await client.read_resource("aethelgard://research-controls")
+        assert "Research audit and valuation controls" in result.contents[0].text
+        assert "quarterly filings cannot answer" in result.contents[0].text
+
+
 async def test_worker_refuses_peer_context_in_independent_stage(tmp_path):
     settings = Settings(demo=True, run_dir=tmp_path)
     async with Client(create_worker("fundamental", settings)) as client:

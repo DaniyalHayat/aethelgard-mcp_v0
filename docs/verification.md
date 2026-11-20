@@ -2,6 +2,8 @@
 
 Development date: November 20, 2026. Local environment: Windows, Python 3.12, official MCP Python SDK 2.3.
 
+Commit `50a67737613c0c22ce3b7408b23e9001f02f316e` passed 127 local tests, distribution build and [Windows/Linux CI](https://github.com/DaniyalHayat/aethelgard-mcp_v0/actions/runs/44750336134). The independent code review found and corrected audit-finding loss, unsafe released prose, assumption-based evidence, Windows hash mismatch, immediate cancellation, future observations, zero-EPS reconciliation and credential exposure before persistence. Follow-up scope tests distinguish a global finding from the valid ticker ALL and keep an excluded ticker's block from contaminating unrelated candidates.
+
 Verified: financial arithmetic and evidence gates; mocked provider refusals, malformed/incomplete output, provenance and credential checks; in-process MCP tools; complete three-worker stdio workflow; stage barriers, peer coverage, cancellation and reports; mocked SEC acceptance filtering and Alpaca pagination/partial-day handling.
 
 No billed OpenAI research run or authenticated Alpaca retrieval was performed for implementation testing. Demo output is synthetic. Companion-chat research does not prove that this standalone live integration has been tested.

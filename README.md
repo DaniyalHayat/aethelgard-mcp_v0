@@ -111,4 +111,6 @@ uv build
 
 Tests cover financial identities, evidence failures, tax netting, malformed/refused provider output, credential protection, pagination, stage isolation, cancellation and a full three-subprocess MCP run. CI needs no keys. See [architecture](docs/architecture.md), [methodology](docs/methodology.md) and [verification](docs/verification.md).
 
+The full [research controls](src/aethelgard_mcp/resources/research-controls.md) are packaged with the server, included in each role's instructions and exposed as the MCP resource `aethelgard://research-controls`. They incorporate explicit source-version checks, indirect manager exposure, same-index controls, funded reinvestment, tax netting and academic-method limits.
+
 Prompts are versioned source, not hidden system-prompt or model-weight changes. No brokerage orders, account access, paid-data purchases or external messages are implemented. Development is AI-assisted, with meaningful commits and explicit verification limits.
