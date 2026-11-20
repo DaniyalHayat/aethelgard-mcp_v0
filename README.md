@@ -88,7 +88,7 @@ Research covers business economics, owner earnings, FCFF/FCFE, reinvestment, ROI
 
 ## Math, data and ranking
 
-Deterministic tools include DCF, reverse implied growth, incremental ROIC, earnings/multiple attribution, portfolio/tax scenarios, dated shareholder IRR, Treasury carry/duration, and SMA/RSI/momentum/volatility/drawdown.
+Deterministic tools include operating-to-FCFF/FCFE reconciliation, funded terminal growth, liquidity shortfalls, DCF, reverse implied growth, incremental ROIC, earnings/multiple attribution, portfolio/tax scenarios, dated shareholder IRR, Treasury carry/duration, and SMA/RSI/momentum/volatility/drawdown. The cash bridge retains compensation in margins, exposes acquisition/customer-financing uses and does not assume loss-related tax refunds by default. These tools check supplied inputs; they do not certify that a generated forecast is economically achievable.
 
 The disclosed ranking score is **base holding-period return minus 0.5 × bear-case loss**. It is a risk preference, not expected return, probability-weighted optimization or a Sharpe ratio. Full scenarios remain visible. No future accuracy is claimed.
 

@@ -81,6 +81,9 @@ def create_server(settings: Settings, orchestrator=None):
         }
 
     for name in (
+        "operating_cash_bridge",
+        "funded_terminal_cash",
+        "funding_path",
         "owner_cash_dcf",
         "enterprise_dcf",
         "reverse_growth",

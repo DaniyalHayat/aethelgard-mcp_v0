@@ -17,6 +17,89 @@ def positive(**values):
         raise ValueError("These inputs must be positive: " + ", ".join(values))
 
 
+def operating_cash_bridge(
+    revenue: float, operating_margin: float, tax_rate: float, diluted_shares: float,
+    depreciation: float = 0, capex: float = 0, working_capital_increase: float = 0,
+    investment_cash: float = 0, guarantee_calls: float = 0, cash_tax_timing: float = 0,
+    interest_expense: float = 0, cash_interest_income: float = 0,
+    minority_cash: float = 0, preferred_cash: float = 0,
+    debt_issued: float = 0, debt_principal: float = 0, equipment_principal: float = 0,
+    recognize_loss_tax_benefit: bool = False,
+) -> dict[str, Any]:
+    """Reconcile operating earnings to FCFF and common FCFE in consistent currency units.
+
+    Margins retain compensation as a cash-equivalent cost. Do not add SBC again or
+    separately impose the same future compensation through dilution. Operating rent
+    remains in margins; equipment principal must not duplicate cash capex.
+    """
+    numeric = {k: v for k, v in locals().items() if k != "recognize_loss_tax_benefit"}
+    finite(**numeric)
+    if diluted_shares <= 0 or not 0 <= tax_rate <= 1 or operating_margin > 1:
+        raise ValueError("Require positive shares, tax from 0 to 1 and margin at most 1")
+    signed = {"operating_margin", "working_capital_increase", "cash_tax_timing"}
+    if any(v < 0 for k, v in numeric.items() if k not in signed):
+        raise ValueError("Cash uses and asset quantities must be nonnegative")
+    if not isinstance(recognize_loss_tax_benefit, bool):
+        raise ValueError("recognize_loss_tax_benefit must be boolean")
+    ebit = revenue * operating_margin
+    pretax_common = ebit - interest_expense + cash_interest_income
+    operating_tax = (ebit if recognize_loss_tax_benefit else max(ebit, 0)) * tax_rate
+    common_tax = (pretax_common if recognize_loss_tax_benefit else max(pretax_common, 0)) * tax_rate
+    nopat = ebit - operating_tax
+    net_financing = interest_expense - cash_interest_income + common_tax - operating_tax
+    common_income = pretax_common - common_tax - minority_cash - preferred_cash
+    reinvestment = capex - depreciation + working_capital_increase + investment_cash + guarantee_calls
+    fcff = nopat - reinvestment - cash_tax_timing
+    net_borrowing = debt_issued - debt_principal - equipment_principal
+    fcfe = fcff - net_financing - minority_cash - preferred_cash + net_borrowing
+    direct_fcfe = common_income - reinvestment - cash_tax_timing + net_borrowing
+    return {
+        "ebit": ebit, "nopat": nopat, "common_income": common_income,
+        "eps": common_income / diluted_shares, "economic_reinvestment": reinvestment,
+        "net_financing_after_tax": net_financing, "net_borrowing": net_borrowing,
+        "fcff": fcff, "fcfe": fcfe, "direct_fcfe": direct_fcfe,
+        "reconciliation_difference": fcfe - direct_fcfe, "cash_per_share": fcfe / diluted_shares,
+        "convention": "Compensation retained in margin; fixed input ownership; no second opening-debt subtraction from FCFE value. Tax timing, deductibility limits and asset recoveries require explicit assumptions.",
+    }
+
+
+def funded_terminal_cash(
+    next_nopat: float, terminal_growth: float, marginal_roic: float,
+    investment_floor: float = 0, financing_after_tax: float = 0, common_cash_claims: float = 0,
+) -> dict[str, Any]:
+    """Fund stable growth without adding two estimates of the same reinvestment need."""
+    finite(**locals())
+    if next_nopat <= 0 or marginal_roic <= 0 or not 0 <= terminal_growth < 1:
+        raise ValueError("Require positive NOPAT/ROIC and terminal growth from 0 to less than 1")
+    if investment_floor < 0 or common_cash_claims < 0:
+        raise ValueError("Investment floor and common cash claims must be nonnegative")
+    growth_investment = next_nopat * terminal_growth / marginal_roic
+    investment = max(growth_investment, investment_floor)
+    fcff = next_nopat - investment
+    return {
+        "growth_reinvestment": growth_investment, "reinvestment": investment,
+        "fcff": fcff, "fcfe_before_net_borrowing": fcff - financing_after_tax - common_cash_claims,
+        "convention": "Next-period NOPAT; investment floor includes persistent capex less depreciation, working capital and recurring investments. A nonpositive cash flow does not support a positive perpetuity.",
+    }
+
+
+def funding_path(
+    opening_cash: float, common_cashflows: list[float], dividends: list[float], buybacks: list[float]
+) -> dict[str, Any]:
+    """Show liquidity before corrective financing; negative balances are funding gaps."""
+    if not common_cashflows or len({len(common_cashflows), len(dividends), len(buybacks)}) != 1:
+        raise ValueError("Cash flows, dividends and buybacks need equal nonzero lengths")
+    finite(opening_cash=opening_cash, **{str(i): x for i, x in enumerate(common_cashflows + dividends + buybacks)})
+    if opening_cash < 0 or any(x < 0 for x in dividends + buybacks):
+        raise ValueError("Opening cash and shareholder payouts must be nonnegative")
+    cash, periods = opening_cash, []
+    for index, (fcfe, dividend, buyback) in enumerate(zip(common_cashflows, dividends, buybacks), 1):
+        cash += fcfe - dividend - buyback
+        periods.append({"period": index, "cash": cash, "funding_shortfall": max(-cash, 0)})
+    return {"periods": periods, "maximum_funding_shortfall": max(p["funding_shortfall"] for p in periods),
+            "convention": "FCFE already includes specified borrowing and principal. Retained cash is not also added to a DCF that values the same flows."}
+
+
 def return_attribution(
     price: float, starting_eps: float, terminal_eps: float, exit_pe: float
 ) -> dict[str, Any]:

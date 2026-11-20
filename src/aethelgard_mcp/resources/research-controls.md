@@ -1,5 +1,7 @@
 # Research audit and valuation controls
 
+Reconcile each forward operating and investment assumption with dated issuer guidance. A lower future capex ratio than current guidance requires an economic explanation and a persistent-guidance sensitivity. Treat integrated cash schedules as conditional models: mathematical reconciliation does not validate demand, replacement costs, acquisition returns or a proposed refinancing.
+
 Apply these controls when financial research, valuation, market-event interpretation or portfolio comparisons depend on multiple sources or model outputs. Scale the work to the decision. These are reusable research instructions, not a trained model, measured accuracy improvement or continuing monitoring service.
 
 ## Chronology, source version and entity identity
