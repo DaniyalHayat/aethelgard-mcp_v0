@@ -36,7 +36,12 @@ def _url(value: Any) -> str | None:
         return None
     try:
         parsed = urlsplit(value)
-        if parsed.scheme == "https" and parsed.hostname and parsed.username is None and parsed.password is None:
+        if (
+            parsed.scheme == "https"
+            and parsed.hostname
+            and parsed.username is None
+            and parsed.password is None
+        ):
             return value
     except ValueError:
         pass
@@ -151,7 +156,9 @@ class ResponsesProvider:
         except (httpx.HTTPError, ValueError):
             raise ProviderError("OpenAI request failed; no retry was attempted.") from None
         if not 200 <= response.status_code < 300:
-            raise ProviderError(f"OpenAI request failed (HTTP {response.status_code}); no retry was attempted.")
+            raise ProviderError(
+                f"OpenAI request failed (HTTP {response.status_code}); no retry was attempted."
+            )
         try:
             body = response.json()
         except (ValueError, UnicodeError, RecursionError):
@@ -208,9 +215,13 @@ class ResponsesProvider:
         except (ValidationError, ValueError):
             raise ProviderError("OpenAI research output did not match the artifact schema.") from None
         supported = _source_urls(citations, actions) | _prior_urls(context)
-        usable = [row for row in artifact.evidence if row.kind != "assumption" and row.access != "unavailable"]
+        usable = [
+            row for row in artifact.evidence if row.kind != "assumption" and row.access != "unavailable"
+        ]
         if not usable or any(row.url not in supported for row in usable):
-            raise ProviderError("Research evidence is missing supporting provider citations or search sources.")
+            raise ProviderError(
+                "Research evidence is missing supporting provider citations or search sources."
+            )
         source_ids = {row.source_id for row in artifact.evidence}
         for candidate in artifact.candidates:
             if candidate.price is not None and candidate.price_source_id not in source_ids:
@@ -297,7 +308,9 @@ class SyntheticProvider:
                 )
             )
             citations.append({"type": "synthetic_fixture", "url": url, "title": f"SYNTHETIC {ticker}"})
-        reviewed = list(ROLES) if stage in ("cross_review", "fresh_audit", "study", "revision", "final") else []
+        reviewed = (
+            list(ROLES) if stage in ("cross_review", "fresh_audit", "study", "revision", "final") else []
+        )
         if stage == "self_review" and role in ROLES:
             reviewed = [role]
         artifact = ResearchArtifact(

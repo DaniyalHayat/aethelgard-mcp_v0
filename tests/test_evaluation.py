@@ -137,3 +137,21 @@ def test_carried_blocking_findings_cannot_be_dropped(research, subject):
     request, artifact = research
     finding = Finding(subject=subject, severity="blocking", explanation="Unverified", correction="Resolve")
     assert not evaluate(artifact, request, [finding])["candidates"][0]["eligible"]
+
+
+def test_known_excluded_ticker_does_not_block_unrelated_candidate(research):
+    request, artifact = research
+    artifact.candidates[0].ticker = "BBB"
+    finding = Finding(subject="AAA", severity="blocking", explanation="AAA only", correction="Exclude AAA")
+    assert evaluate(artifact, request, [finding], {"AAA", "BBB"})["candidates"][0]["eligible"]
+
+
+def test_global_all_does_not_become_allstate_ticker(research):
+    request, artifact = research
+    finding = Finding(
+        subject="all", severity="blocking", explanation="All sources invalid", correction="Verify"
+    )
+    assert not evaluate(artifact, request, [finding], {"AAA", "ALL"})["candidates"][0]["eligible"]
+    finding.scope = "ticker"
+    finding.subject = "ALL"
+    assert evaluate(artifact, request, [finding], {"AAA", "ALL"})["candidates"][0]["eligible"]

@@ -56,6 +56,7 @@ class Candidate(StrictModel):
 
 class Finding(StrictModel):
     subject: str
+    scope: Literal["ticker", "global", "auto"] = "auto"
     severity: Literal["blocking", "material", "minor"]
     explanation: str
     correction: str

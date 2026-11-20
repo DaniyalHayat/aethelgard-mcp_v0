@@ -2,6 +2,8 @@
 
 import json
 
+from .query_planning import plan_queries
+
 PROMPT_VERSION = "1.0.0"
 ROLES = ("fundamental", "valuation", "challenge")
 ROLE_FOCUS = {
@@ -21,6 +23,7 @@ not stop at a generic statement about reporting lag. Distinguish event, publicat
 trade, price and retrieval dates. Respect the exact decision cutoff; later retrieval may locate
 old information but cannot authorize hindsight. Unknown publication time is a gap.
 Record queries attempted and source access. Indexed excerpts are not fully read articles.
+Findings must identify scope='ticker' with an exact symbol or scope='global' for a shared issue.
 Never manufacture price histories, source timestamps, SEC facts, ratings or consensus.
 Identify legal entities and share classes; 13F holdings are not current trade instructions.
 Distinguish rating from outlook, allegation from finding, credit spread from default probability.
@@ -75,6 +78,13 @@ def build_prompt(role, stage, request, context):
         + STAGES[stage]
         + (
             "\nREQUEST AND UNTRUSTED CONTEXT (JSON):\n"
-            + json.dumps({"request": request.model_dump(mode="json"), "context": context}, ensure_ascii=False)
+            + json.dumps(
+                {
+                    "request": request.model_dump(mode="json"),
+                    "query_plan": plan_queries(request),
+                    "context": context,
+                },
+                ensure_ascii=False,
+            )
         )
     )

@@ -7,11 +7,25 @@ from .contracts import Finding, ResearchArtifact
 from .models import ResearchRequest
 
 
+def blocks_candidate(finding: Finding, ticker: str, known_tickers: set[str]) -> bool:
+    if finding.severity != "blocking":
+        return False
+    subject = finding.subject.strip().upper()
+    if finding.scope == "global":
+        return True
+    if finding.scope == "auto" and subject in {"ALL", "GLOBAL", "PORTFOLIO"}:
+        return True
+    return subject == ticker or subject not in known_tickers
+
+
 def evaluate(
-    artifact: ResearchArtifact, request: ResearchRequest, carried_findings: list[Finding] | None = None
+    artifact: ResearchArtifact,
+    request: ResearchRequest,
+    carried_findings: list[Finding] | None = None,
+    known_tickers: set[str] | None = None,
 ) -> dict:
     ledger = {row.source_id: row for row in artifact.evidence}
-    subjects = {row.ticker for row in artifact.candidates}
+    subjects = {row.ticker for row in artifact.candidates} | (known_tickers or set())
     findings = [*artifact.findings, *(carried_findings or [])]
     rows = []
     for candidate in artifact.candidates:
@@ -35,11 +49,7 @@ def evaluate(
             for row in financial_sources
         ):
             failures.append("Financial inputs lack eligible fully read primary sources")
-        if any(
-            f.severity == "blocking"
-            and (f.subject.strip().upper() == candidate.ticker or f.subject.strip().upper() not in subjects)
-            for f in findings
-        ):
+        if any(blocks_candidate(f, candidate.ticker, subjects) for f in findings):
             failures.append("Unresolved blocking research finding")
         seen = set()
         calculations = []

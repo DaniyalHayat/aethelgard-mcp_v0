@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Evidence-led market research, explicit valuation scenarios, and auditable MCP workflows"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["mcp>=2.3,<3", "httpx>=0.28,<1", "pydantic>=2.11,<3", "python-dotenv>=1.1,<2"]
+dependencies = ["mcp>=2.3,<3", "httpx>=0.28,<1", "pydantic>=2.11,<3", "python-dotenv>=1.1,<2", "tzdata>=2025.2"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3,<10", "pytest-asyncio>=0.26,<2", "ruff>=0.11,<1"]

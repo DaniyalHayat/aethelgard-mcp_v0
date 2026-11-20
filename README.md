@@ -1,40 +1,114 @@
 # Aethelgard MCP
 
-Evidence-led equity and market research through the Model Context Protocol.
+Three research MCP services. One orchestrator. Inspectable evidence and financial math.
 
-Compare a supplied ticker list, rank a researched candidate universe, or start with a market brief when no tickers are supplied. The workflow separates independent research, cross-review, fresh audits, academic challenge and a final decision record. Financial scenarios are computed from explicit inputs; generated opinions are never presented as measured probabilities or guaranteed returns.
+Compare supplied tickers, rank a researched universe, or run without tickers to investigate the current market and discover candidates. The default brief emphasizes growth, value, technology, semiconductors and durable market leaders while testing cross-sector alternatives. It aims for 3–5 supported recommendations and may withhold every recommendation when evidence is incomplete.
 
-## Implementation in progress
+**This is a research system, not a trading bot or a validated return-prediction engine.** The services use different research roles; shared models and sources do not create independent statistical evidence.
 
-This repository is being built in focused, tested increments. Until the implementation and verification sections below are completed, this page describes the intended interface rather than claiming a deployed investment engine.
+## Try it without credentials
 
-### Intended capabilities
+Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-- Configurable ticker count, dollar budget, horizons and decision cutoff.
-- Current news follow-through: search, read the article, follow named sources, distinguish publication dates from event and trade dates.
-- Three separate research MCP services, each performing independent research, self-validation and peer review, with one orchestrator enforcing the sequence and consolidating findings. These are research roles, not independently proven prediction engines.
-- Default market discovery selects a researched candidate universe and aims to recommend 3–5 eligible stocks, without a hardcoded ticker watchlist. Evidence gaps can produce fewer recommendations.
-- Side-by-side company economics, earnings definitions, cash generation, capital allocation, dilution, funding obligations, valuation and technical context.
-- Deterministic return attribution, DCF, reverse valuation, portfolio scenarios and Treasury carry/duration calculations.
-- Structured source ledgers, saved stage artifacts, a reproducible offline example and honest missing-data gates.
-- Bring-your-own API credentials in a local ignored environment file. No brokerage orders or account access.
+~~~sh
+git clone https://github.com/DaniyalHayat/aethelgard-mcp_v0.git
+cd aethelgard-mcp_v0
+uv sync --locked --extra dev
+uv run aethelgard-research --demo
+~~~
 
-### Engineering approach
+The demo launches three actual MCP subprocesses and exercises every stage with clearly labeled fabricated fixtures. It makes no network requests and spends no API credits. Reports are saved under the ignored directory `runs/<run-id>/`.
 
-The server uses the official MCP Python SDK. Network providers, research orchestration, data validation and financial math are separate components so each can be tested without spending API credits. A run records its information cutoff and configuration. Historical observations, dated forecasts, assumptions and generated judgments remain distinguishable throughout the report.
+## Live research
 
-```mermaid
-flowchart LR
-    A[Ticker list or market request] --> B[Validate request and freeze cutoff]
-    B --> C[Three independent research MCP services]
-    C --> D[Cross-review every report]
-    D --> E[Fresh source and calculation audits]
-    E --> F[Academic challenge and controlled revisions]
-    F --> G[Computed comparison and decision record]
-```
+Copy `.env.example` to `.env` in the repository and enter your own `OPENAI_API_KEY`. All example credentials are blank. Model and limits are configurable. Never commit credentials or put them in research prompts.
 
-### Verification policy
+~~~sh
+uv run aethelgard-research
+uv run aethelgard-research --tickers VRT MRVL --horizons 8 10 --budget 160
+uv run aethelgard-research --mode rank --candidates 12 --horizons 0.5 1.4 4.6
+uv run aethelgard-research --tickers MSFT MA --as-of 2026-11-20T12:45:00+00:00
+~~~
 
-Offline fixtures and mocked provider tests establish behavior, arithmetic and protocol compatibility. They do not establish investment performance. Live integrations are reported separately, with their actual verification status. No API key is required for the offline examples or tests.
+These symbols demonstrate the interface; production discovery has no fixed ticker watchlist. Requests support up to 20 symbols/candidates and five horizons. Large requests may need a higher output-token limit or a narrower universe. Incomplete provider responses fail closed.
 
-Development is AI-assisted. Commit messages and the verification log describe the work actually performed; this project does not claim a live trading track record.
+A complete live run submits **17 model requests** with web search enabled. Request and output-token limits are **not a dollar cap or a hosted-search-action cap**. Your API provider bills usage separately. There are no automatic retries. Mocked provider tests and offline MCP connections have passed; a billed end-to-end live run has not been verified in this development session.
+
+## Connect an MCP host
+
+Replace the directory with your absolute checkout path:
+
+~~~json
+{
+  "mcpServers": {
+    "aethelgard": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/aethelgard-mcp_v0", "run", "aethelgard-mcp"]
+    }
+  }
+}
+~~~
+
+Windows JSON paths can use forward slashes, such as `C:/Projects/aethelgard-mcp_v0`. Add `--demo` after `aethelgard-mcp` for offline use.
+
+Call `start_research` with an empty request for market discovery, or supply `tickers`, `mode`, `candidate_limit`, `budget_per_horizon`, `horizons_years`, `objective` and a timezone-aware `as_of`. Poll `research_status`, then read `research_report`. Cancellation stops pending work; requests already submitted may still be billed.
+
+The orchestrator launches three independently addressable services:
+
+~~~sh
+uv run python -m aethelgard_mcp.worker --role fundamental
+uv run python -m aethelgard_mcp.worker --role valuation
+uv run python -m aethelgard_mcp.worker --role challenge
+~~~
+
+Each exposes `research_stage` and `capabilities`. Separate registration is optional: the orchestrator already connects to all three over stdio.
+
+## Review sequence
+
+~~~mermaid
+flowchart TD
+    R[Ticker comparison or market discovery] --> O[Orchestrator: freeze request and cutoff]
+    O --> F[Fundamental MCP]
+    O --> V[Valuation MCP]
+    O --> C[Challenge MCP]
+    F --> S[Independent reports then own self-checks]
+    V --> S
+    C --> S
+    S --> X[Each service reviews all three reports]
+    X --> A[Fresh source, valuation and omission audits]
+    A --> L[Academic and methodological challenge]
+    L --> U[Each service revises its conclusions]
+    U --> M[Deterministic calculations and evidence gates]
+    M --> D[Orchestrator review and conditional rankings]
+~~~
+
+Stage barriers prevent peer context reaching the first pass. Each stage is a separate stateless model request. The orchestrator checks identity, ticker coverage, peer coverage, synthetic/live separation and final-universe membership. Sources, queries, citations, search actions, usage and artifact fingerprints remain inspectable.
+
+Research covers business economics, owner earnings, FCFF/FCFE, reinvestment, ROIC, SBC/dilution, debt/leases, customer financing, contracts, AI power/supply constraints, macro/credit, news chronology, ETF overlap, technicals, tax and execution. These are requirements to investigate, not a claim that every fact can be obtained.
+
+## Math, data and ranking
+
+Deterministic tools include DCF, reverse implied growth, incremental ROIC, earnings/multiple attribution, portfolio/tax scenarios, dated shareholder IRR, Treasury carry/duration, and SMA/RSI/momentum/volatility/drawdown.
+
+The disclosed ranking score is **base holding-period return minus 0.5 × bear-case loss**. It is a risk preference, not expected return, probability-weighted optimization or a Sharpe ratio. Full scenarios remain visible. No future accuracy is claimed.
+
+Missing/stale/post-cutoff prices, unread primary financial evidence, incomplete scenarios, blocking findings, absent cash-flow valuation or inconsistent EPS/multiple arithmetic withhold a candidate from computed rankings. A schema and valid URL cannot prove a source supports a generated claim. The generated narrative is retained for audit; `eligible_recommendations` contains the gated result.
+
+Optional host tools:
+
+- `issuer_filings`: SEC recent-submission metadata by CIK and acceptance timestamp. Set `SEC_USER_AGENT` to your application name and contact email. No SEC key is required. This returns filing links, not automatic audited statement extraction.
+- `adjusted_price_history`: Alpaca history and technicals using your `ALPACA_API_KEY` and `ALPACA_SECRET_KEY`. IEX is one venue; SIP requires entitlement. Pagination is checked. Adjusted history is not an executable quote or guaranteed point-in-time backtest data.
+
+These optional tools are separate from the autonomous research stages, which use hosted web search. Their output is not automatically injected into research calls.
+
+## Verification
+
+~~~sh
+uv run ruff check .
+uv run pytest -q
+uv build
+~~~
+
+Tests cover financial identities, evidence failures, tax netting, malformed/refused provider output, credential protection, pagination, stage isolation, cancellation and a full three-subprocess MCP run. CI needs no keys. See [architecture](docs/architecture.md), [methodology](docs/methodology.md) and [verification](docs/verification.md).
+
+Prompts are versioned source, not hidden system-prompt or model-weight changes. No brokerage orders, account access, paid-data purchases or external messages are implemented. Development is AI-assisted, with meaningful commits and explicit verification limits.
