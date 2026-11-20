@@ -15,7 +15,8 @@ def test_bridge_reconciles_common_cash_and_does_not_ignore_financing():
     assert result["nopat"] == 24
     assert result["fcff"] == 10
     assert result["fcfe"] == pytest.approx(7.3)
-    assert result["eps"] == pytest.approx(1.93)
+    assert result["cash_equivalent_earnings_per_share"] == pytest.approx(1.93)
+    assert "eps" not in result
     assert result["direct_fcfe"] == pytest.approx(result["fcfe"])
 
 

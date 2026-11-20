@@ -54,12 +54,12 @@ def operating_cash_bridge(
     fcfe = fcff - net_financing - minority_cash - preferred_cash + net_borrowing
     direct_fcfe = common_income - reinvestment - cash_tax_timing + net_borrowing
     return {
-        "ebit": ebit, "nopat": nopat, "common_income": common_income,
-        "eps": common_income / diluted_shares, "economic_reinvestment": reinvestment,
+        "ebit": ebit, "nopat": nopat, "cash_equivalent_common_income": common_income,
+        "cash_equivalent_earnings_per_share": common_income / diluted_shares, "economic_reinvestment": reinvestment,
         "net_financing_after_tax": net_financing, "net_borrowing": net_borrowing,
         "fcff": fcff, "fcfe": fcfe, "direct_fcfe": direct_fcfe,
         "reconciliation_difference": fcfe - direct_fcfe, "cash_per_share": fcfe / diluted_shares,
-        "convention": "Compensation retained in margin; fixed input ownership; no second opening-debt subtraction from FCFE value. Tax timing, deductibility limits and asset recoveries require explicit assumptions.",
+        "convention": "Compensation retained in margin; fixed input ownership; no second opening-debt subtraction from FCFE value. Minority/preferred inputs are cash distributions, so the earnings output is a cash-equivalent proxy, not accounting EPS. Tax timing, deductibility limits and asset recoveries require explicit assumptions.",
     }
 
 
